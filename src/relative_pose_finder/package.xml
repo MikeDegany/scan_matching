@@ -1,19 +1,18 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>scan_matcher</name>
-  <version>0.1.0</version>
-  <description>A ROS2 package for 2D laser scan matching</description>
-  
-  <maintainer email="Mike.Degany@gmail.com">Mike Degany</maintainer>
-  <license>Apache 2.0</license>
+  <name>relative_pose_finder</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="mike.degany@gmail.com">md0708</maintainer>
+  <license>TODO: License declaration</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>visualization_msgs</depend>
+  <depend>slam_toolbox</depend>
   <depend>tf2</depend>
   <depend>tf2_ros</depend>
 
