@@ -21,6 +21,9 @@ private:
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr robot1_scan_sub_;
     rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr robot2_scan_sub_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
+
+    rclcpp::Publisher<sensor_msgs::msg::LaserScan>::SharedPtr transformed_scan_pub_;
+
     
     sensor_msgs::msg::LaserScan::SharedPtr latest_scan1_;
     sensor_msgs::msg::LaserScan::SharedPtr latest_scan2_;

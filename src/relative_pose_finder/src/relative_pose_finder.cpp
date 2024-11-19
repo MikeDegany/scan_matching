@@ -15,6 +15,10 @@ RelativePoseFinder::RelativePoseFinder()
 
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
     
+    transformed_scan_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>("transformed_scan", 10);
+
+
+
     scan1_received_ = false;
     scan2_received_ = false;
 }
@@ -37,6 +41,59 @@ void RelativePoseFinder::robot2_scan_callback(const sensor_msgs::msg::LaserScan:
     }
 }
 
+sensor_msgs::msg::LaserScan publishTransformedScan(const sensor_msgs::msg::LaserScan::SharedPtr& scan, ScanMatcher::MatchResult result, rclcpp::Time& stamp){
+    ScanMatcher ScanMatcher_instance(50, 0.001);
+    sensor_msgs::msg::LaserScan transformed_scan = *scan;
+    transformed_scan.header.frame_id = "lidar2d_0_laser";
+    transformed_scan.header.stamp = stamp;
+
+    // Create transformation matrix
+    Eigen::Matrix3d transform = Eigen::Matrix3d::Identity();
+    transform(0, 0) = std::cos(result.theta);
+    transform(0, 1) = -std::sin(result.theta);
+    transform(1, 0) = std::sin(result.theta);
+    transform(1, 1) = std::cos(result.theta);
+    transform(0, 2) = result.x;
+    transform(1, 2) = result.y;
+    
+    std::vector<Point2D> points = ScanMatcher_instance.convertScanToPoints(scan);
+
+    ScanMatcher_instance.transformPoints(points, transform);
+
+
+    for (size_t i = 0; i < transformed_scan.ranges.size(); ++i) {
+        transformed_scan.ranges[i] = std::hypot(points[i].x, points[i].y);
+    
+    }
+    return transformed_scan;
+}
+
+
+sensor_msgs::msg::LaserScan publishCorrespondedPoints(const sensor_msgs::msg::LaserScan::SharedPtr& scan1, const sensor_msgs::msg::LaserScan::SharedPtr& scan2, rclcpp::Time& stamp){
+    ScanMatcher ScanMatcher_instance(50, 0.001);
+    sensor_msgs::msg::LaserScan scan1_p = *scan1;
+    sensor_msgs::msg::LaserScan scan2_p = *scan2;
+
+    scan1_p.header.frame_id = "tf_laser";
+    scan1_p.header.stamp = stamp;
+    
+    std::vector<Point2D> points1 = ScanMatcher_instance.convertScanToPoints(scan1);
+    std::vector<Point2D> points2 = ScanMatcher_instance.convertScanToPoints(scan2);
+
+    std::vector<Point2D> corresponding_points;
+
+    for (const auto& p1 : points1) {
+        corresponding_points.push_back(ScanMatcher_instance.findNearestPoint(p1, points2));
+    }
+
+    for (size_t i = 0; i < scan1_p.ranges.size(); ++i) {
+        scan1_p.ranges[i] = std::hypot(corresponding_points[i].x, corresponding_points[i].y);
+    
+    }
+    return scan1_p;
+}
+
+
 void RelativePoseFinder::match_scans()
 {
     auto result = scan_matcher_.match(latest_scan1_, latest_scan2_);
@@ -44,8 +101,8 @@ void RelativePoseFinder::match_scans()
     if (result.fitness > 0.7) {  // Arbitrary threshold, adjust as needed
         geometry_msgs::msg::TransformStamped transform;
         transform.header.stamp = this->now();
-        transform.header.frame_id = "JK3/base_link";
-        transform.child_frame_id = "JK5/base_link";
+        transform.header.frame_id = "lidar2d_0_laser";
+        transform.child_frame_id = "tf_laser";
         
         transform.transform.translation.x = result.x;
         transform.transform.translation.y = result.y;
@@ -62,6 +119,12 @@ void RelativePoseFinder::match_scans()
         RCLCPP_INFO(this->get_logger(),
             "Found relative pose: x=%.2f, y=%.2f, theta=%.2f, fitness=%.2f",
             result.x, result.y, result.theta, result.fitness);
+
+        auto stamp = this->now();
+        sensor_msgs::msg::LaserScan transformed_scan = publishTransformedScan(latest_scan1_, result, stamp);
+        // sensor_msgs::msg::LaserScan transformed_scan = publishCorrespondedPoints(latest_scan1_, latest_scan2_, stamp);
+
+        transformed_scan_pub_->publish(transformed_scan);
     } else {
         RCLCPP_WARN(this->get_logger(),
             "Low matching fitness: %.2f", result.fitness);

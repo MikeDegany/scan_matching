@@ -27,7 +27,7 @@ public:
     MatchResult match(const sensor_msgs::msg::LaserScan::SharedPtr& scan1,
                      const sensor_msgs::msg::LaserScan::SharedPtr& scan2);
 
-private:
+// private:
     std::vector<Point2D> convertScanToPoints(const sensor_msgs::msg::LaserScan::SharedPtr& scan);
     Point2D findNearestPoint(const Point2D& point, const std::vector<Point2D>& points);
     Eigen::Matrix3d computeTransform(const std::vector<Point2D>& points1,

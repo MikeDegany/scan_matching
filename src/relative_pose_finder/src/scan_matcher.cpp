@@ -2,6 +2,7 @@
 #include "relative_pose_finder/scan_matcher.hpp"
 #include <cmath>
 #include <limits>
+#include <iostream>
 
 ScanMatcher::ScanMatcher(int max_iterations, double tolerance)
     : max_iterations_(max_iterations), tolerance_(tolerance)
@@ -143,7 +144,6 @@ ScanMatcher::MatchResult ScanMatcher::match(
         }
         prev_error = error;
     }
-    
     // Extract final transformation parameters
     MatchResult result;
     result.x = current_transform(0, 2);
