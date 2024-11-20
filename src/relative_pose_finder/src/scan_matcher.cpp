@@ -8,148 +8,251 @@ ScanMatcher::ScanMatcher(int max_iterations, double tolerance)
     : max_iterations_(max_iterations), tolerance_(tolerance)
 {}
 
-std::vector<Point2D> ScanMatcher::convertScanToPoints(
+// std::vector<Point2D> ScanMatcher::convertScanToPoints(
+//     const sensor_msgs::msg::LaserScan::SharedPtr& scan)
+// {
+//     std::vector<Point2D> points;
+//     double angle = scan->angle_min;
+    
+//     for (const auto& range : scan->ranges) {
+//         if (std::isfinite(range) && range >= scan->range_min && range <= scan->range_max) {
+//             double x = range * std::cos(angle);
+//             double y = range * std::sin(angle);
+//             points.emplace_back(x, y);
+//         }
+//         angle += scan->angle_increment;
+//     }
+    
+//     return points;
+// }
+
+std::vector<PolarPoint> ScanMatcher::extractPolarPoints(
     const sensor_msgs::msg::LaserScan::SharedPtr& scan)
 {
-    std::vector<Point2D> points;
+    std::vector<PolarPoint> points;
     double angle = scan->angle_min;
-    
+
     for (const auto& range : scan->ranges) {
         if (std::isfinite(range) && range >= scan->range_min && range <= scan->range_max) {
-            double x = range * std::cos(angle);
-            double y = range * std::sin(angle);
-            points.emplace_back(x, y);
+            points.emplace_back(range, angle);
         }
         angle += scan->angle_increment;
     }
-    
+
     return points;
 }
 
-Point2D ScanMatcher::findNearestPoint(const Point2D& point,
-                                    const std::vector<Point2D>& points)
-{
-    double min_dist = std::numeric_limits<double>::max();
-    Point2D nearest;
-    
-    for (const auto& p : points) {
-        double dist = std::hypot(point.x - p.x, point.y - p.y);
-        if (dist < min_dist) {
-            min_dist = dist;
-            nearest = p;
-        }
-    }
-    
-    return nearest;
-}
 
-Eigen::Matrix3d ScanMatcher::computeTransform(const std::vector<Point2D>& points1,
-                                            const std::vector<Point2D>& points2)
-{
-    // Compute centroids
-    Point2D centroid1{0, 0}, centroid2{0, 0};
-    for (size_t i = 0; i < points1.size(); ++i) {
-        centroid1.x += points1[i].x;
-        centroid1.y += points1[i].y;
-        centroid2.x += points2[i].x;
-        centroid2.y += points2[i].y;
-    }
-    centroid1.x /= points1.size();
-    centroid1.y /= points1.size();
-    centroid2.x /= points2.size();
-    centroid2.y /= points2.size();
+
+// Point2D ScanMatcher::findNearestPoint(const Point2D& point,
+//                                     const std::vector<Point2D>& points)
+// {
+
+
+//     double min_dist = std::numeric_limits<double>::max();
+//     Point2D nearest;
     
-    // Compute covariance matrix
-    double sxx = 0, sxy = 0, syx = 0, syy = 0;
-    for (size_t i = 0; i < points1.size(); ++i) {
-        double dx1 = points1[i].x - centroid1.x;
-        double dy1 = points1[i].y - centroid1.y;
-        double dx2 = points2[i].x - centroid2.x;
-        double dy2 = points2[i].y - centroid2.y;
+//     for (const auto& p : points) {
+//         double dist = std::hypot(point.x - p.x, point.y - p.y);
+//         if (dist < min_dist) {
+//             min_dist = dist;
+//             nearest = p;
+//         }
+//     }
+    
+//     return nearest;
+// }
+
+// Eigen::Matrix3d ScanMatcher::computeTransform(const std::vector<Point2D>& points1,
+//                                             const std::vector<Point2D>& points2)
+// {
+//     // Compute centroids
+//     Point2D centroid1{0, 0}, centroid2{0, 0};
+//     for (size_t i = 0; i < points1.size(); ++i) {
+//         centroid1.x += points1[i].x;
+//         centroid1.y += points1[i].y;
+//         centroid2.x += points2[i].x;
+//         centroid2.y += points2[i].y;
+//     }
+//     centroid1.x /= points1.size();
+//     centroid1.y /= points1.size();
+//     centroid2.x /= points2.size();
+//     centroid2.y /= points2.size();
+    
+//     // Compute covariance matrix
+//     double sxx = 0, sxy = 0, syx = 0, syy = 0;
+//     for (size_t i = 0; i < points1.size(); ++i) {
+//         double dx1 = points1[i].x - centroid1.x;
+//         double dy1 = points1[i].y - centroid1.y;
+//         double dx2 = points2[i].x - centroid2.x;
+//         double dy2 = points2[i].y - centroid2.y;
         
-        sxx += dx1 * dx2;
-        sxy += dx1 * dy2;
-        syx += dy1 * dx2;
-        syy += dy1 * dy2;
+//         sxx += dx1 * dx2;
+//         sxy += dx1 * dy2;
+//         syx += dy1 * dx2;
+//         syy += dy1 * dy2;
+//     }
+    
+//     // Compute rotation
+//     double theta = std::atan2(sxy - syx, sxx + syy);
+    
+//     // Create transformation matrix
+//     Eigen::Matrix3d transform = Eigen::Matrix3d::Identity();
+//     transform(0, 0) = std::cos(theta);
+//     transform(0, 1) = -std::sin(theta);
+//     transform(1, 0) = std::sin(theta);
+//     transform(1, 1) = std::cos(theta);
+//     transform(0, 2) = centroid2.x - (centroid1.x * std::cos(theta) - centroid1.y * std::sin(theta));
+//     transform(1, 2) = centroid2.y - (centroid1.x * std::sin(theta) + centroid1.y * std::cos(theta));
+    
+//     return transform;
+// }
+
+
+Eigen::Matrix3d ScanMatcher::computeTransform(
+    const std::vector<PolarPoint>& scan1,
+    const std::vector<PolarPoint>& scan2)
+{
+    double delta_theta = 0;  // Example: Average angular difference
+    double translation_x = 0, translation_y = 0;
+
+    size_t min_size = std::min(scan1.size(), scan2.size());
+    for (size_t i = 0; i < min_size; ++i) {
+        double angle_diff = scan2[i].angle - scan1[i].angle;
+        double range_diff = scan2[i].range - scan1[i].range;
+
+        delta_theta += angle_diff / min_size;
+
+        translation_x += range_diff * std::cos(scan1[i].angle) / min_size;
+        translation_y += range_diff * std::sin(scan1[i].angle) / min_size;
     }
-    
-    // Compute rotation
-    double theta = std::atan2(sxy - syx, sxx + syy);
-    
-    // Create transformation matrix
+
     Eigen::Matrix3d transform = Eigen::Matrix3d::Identity();
-    transform(0, 0) = std::cos(theta);
-    transform(0, 1) = -std::sin(theta);
-    transform(1, 0) = std::sin(theta);
-    transform(1, 1) = std::cos(theta);
-    transform(0, 2) = centroid2.x - (centroid1.x * std::cos(theta) - centroid1.y * std::sin(theta));
-    transform(1, 2) = centroid2.y - (centroid1.x * std::sin(theta) + centroid1.y * std::cos(theta));
-    
+    transform(0, 0) = std::cos(delta_theta);
+    transform(0, 1) = -std::sin(delta_theta);
+    transform(1, 0) = std::sin(delta_theta);
+    transform(1, 1) = std::cos(delta_theta);
+    transform(0, 2) = translation_x;
+    transform(1, 2) = translation_y;
+
     return transform;
 }
 
-void ScanMatcher::transformPoints(std::vector<Point2D>& points,
-                                const Eigen::Matrix3d& transform)
+
+
+// void ScanMatcher::transformPoints(std::vector<Point2D>& points,
+//                                 const Eigen::Matrix3d& transform)
+// {
+//     for (auto& point : points) {
+//         double x = point.x;
+//         double y = point.y;
+//         point.x = transform(0, 0) * x + transform(0, 1) * y + transform(0, 2);
+//         point.y = transform(1, 0) * x + transform(1, 1) * y + transform(1, 2);
+//     }
+// }
+
+// double ScanMatcher::computeFitness(const std::vector<Point2D>& points1,
+//                                  const std::vector<Point2D>& points2)
+// {
+//     double total_error = 0;
+//     for (const auto& p1 : points1) {
+//         Point2D nearest = findNearestPoint(p1, points2);
+//         total_error += std::hypot(p1.x - nearest.x, p1.y - nearest.y);
+//     }
+//     return total_error / points1.size();
+// }
+
+double ScanMatcher::computeFitness(
+    const std::vector<PolarPoint>& scan1,
+    const std::vector<PolarPoint>& scan2)
 {
-    for (auto& point : points) {
-        double x = point.x;
-        double y = point.y;
-        point.x = transform(0, 0) * x + transform(0, 1) * y + transform(0, 2);
-        point.y = transform(1, 0) * x + transform(1, 1) * y + transform(1, 2);
+    double total_error = 0.0;
+    size_t min_size = std::min(scan1.size(), scan2.size());
+
+    for (size_t i = 0; i < min_size; ++i) {
+        total_error += std::abs(scan1[i].range - scan2[i].range);
     }
+
+    return total_error / min_size;
 }
 
-double ScanMatcher::computeFitness(const std::vector<Point2D>& points1,
-                                 const std::vector<Point2D>& points2)
-{
-    double total_error = 0;
-    for (const auto& p1 : points1) {
-        Point2D nearest = findNearestPoint(p1, points2);
-        total_error += std::hypot(p1.x - nearest.x, p1.y - nearest.y);
-    }
-    return total_error / points1.size();
-}
+
+// ScanMatcher::MatchResult ScanMatcher::match(
+//     const sensor_msgs::msg::LaserScan::SharedPtr& scan1,
+//     const sensor_msgs::msg::LaserScan::SharedPtr& scan2)
+// {
+//     // Convert scans to point clouds
+//     auto points1 = convertScanToPoints(scan1);
+//     auto points2 = convertScanToPoints(scan2);
+    
+//     // Initial transform
+//     Eigen::Matrix3d current_transform = Eigen::Matrix3d::Identity();
+//     double prev_error = std::numeric_limits<double>::max();
+    
+//     // ICP iterations
+//     for (int iter = 0; iter < max_iterations_; ++iter) {
+//         // Find corresponding points
+//         std::vector<Point2D> corresponding_points;
+//         for (const auto& p1 : points1) {
+//             corresponding_points.push_back(findNearestPoint(p1, points2));
+//         }
+        
+//         // Compute transform
+//         Eigen::Matrix3d transform = computeTransform(points1, corresponding_points);
+//         current_transform = transform * current_transform;
+        
+//         // Apply transform to points
+//         transformPoints(points1, transform);
+        
+//         // Check convergence
+//         double error = computeFitness(points1, points2);
+//         if (std::abs(error - prev_error) < tolerance_) {
+//             break;
+//         }
+//         prev_error = error;
+//     }
+//     // Extract final transformation parameters
+//     MatchResult result;
+//     result.x = current_transform(0, 2);
+//     result.y = current_transform(1, 2);
+//     result.theta = std::atan2(current_transform(1, 0), current_transform(0, 0));
+//     result.fitness = 1.0 / (1.0 + prev_error);  // Convert error to fitness score
+    
+//     return result;
+// }
 
 ScanMatcher::MatchResult ScanMatcher::match(
     const sensor_msgs::msg::LaserScan::SharedPtr& scan1,
     const sensor_msgs::msg::LaserScan::SharedPtr& scan2)
 {
-    // Convert scans to point clouds
-    auto points1 = convertScanToPoints(scan1);
-    auto points2 = convertScanToPoints(scan2);
-    
-    // Initial transform
+    auto polar_scan1 = extractPolarPoints(scan1);
+    auto polar_scan2 = extractPolarPoints(scan2);
+
     Eigen::Matrix3d current_transform = Eigen::Matrix3d::Identity();
     double prev_error = std::numeric_limits<double>::max();
-    
-    // ICP iterations
+
     for (int iter = 0; iter < max_iterations_; ++iter) {
-        // Find corresponding points
-        std::vector<Point2D> corresponding_points;
-        for (const auto& p1 : points1) {
-            corresponding_points.push_back(findNearestPoint(p1, points2));
-        }
-        
-        // Compute transform
-        Eigen::Matrix3d transform = computeTransform(points1, corresponding_points);
+        Eigen::Matrix3d transform = computeTransform(polar_scan1, polar_scan2);
         current_transform = transform * current_transform;
-        
-        // Apply transform to points
-        transformPoints(points1, transform);
-        
-        // Check convergence
-        double error = computeFitness(points1, points2);
+
+        // Apply the transform to polar_scan1
+        for (auto& point : polar_scan1) {
+            point.range += transform(0, 2);  // Translation
+            point.angle += std::atan2(transform(1, 0), transform(0, 0));  // Rotation
+        }
+
+        double error = computeFitness(polar_scan1, polar_scan2);
         if (std::abs(error - prev_error) < tolerance_) {
             break;
         }
         prev_error = error;
     }
-    // Extract final transformation parameters
+
     MatchResult result;
     result.x = current_transform(0, 2);
     result.y = current_transform(1, 2);
     result.theta = std::atan2(current_transform(1, 0), current_transform(0, 0));
-    result.fitness = 1.0 / (1.0 + prev_error);  // Convert error to fitness score
-    
+    result.fitness = 1.0 / (1.0 + prev_error);
+
     return result;
 }
