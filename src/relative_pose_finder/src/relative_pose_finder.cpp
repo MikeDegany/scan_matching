@@ -57,7 +57,8 @@ sensor_msgs::msg::PointCloud2 publishTransformedScan(const sensor_msgs::msg::Las
     transform(1, 2) = result.y;
     
     std::vector<Point2D> points = ScanMatcher_instance.convertScanToPoints(scan);
-    ScanMatcher_instance.transformPoints(points, transform);
+    
+    ScanMatcher_instance.transformPoints(points, transform); // Comment out this line to visualize the converted points from original scan 
 
     // RCLCPP_INFO(node->get_logger(), "Publishing transformed PointCloud2 with %zu points", points.size());
 
