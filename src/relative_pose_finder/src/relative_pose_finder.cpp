@@ -15,7 +15,8 @@ RelativePoseFinder::RelativePoseFinder()
 
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
     
-    transformed_scan_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>("transformed_scan", 10);
+    // transformed_scan_pub_ = this->create_publisher<sensor_msgs::msg::LaserScan>("transformed_scan", 10);
+    transformed_scan_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("transformed_scan", 10);
 
 
 
@@ -41,11 +42,39 @@ void RelativePoseFinder::robot2_scan_callback(const sensor_msgs::msg::LaserScan:
     }
 }
 
-sensor_msgs::msg::LaserScan publishTransformedScan(const sensor_msgs::msg::LaserScan::SharedPtr& scan, ScanMatcher::MatchResult result, rclcpp::Time& stamp){
+// sensor_msgs::msg::LaserScan publishTransformedScan(const sensor_msgs::msg::LaserScan::SharedPtr& scan, ScanMatcher::MatchResult result, rclcpp::Time& stamp){
+//     ScanMatcher ScanMatcher_instance(50, 0.001);
+//     sensor_msgs::msg::LaserScan transformed_scan = *scan;
+//     transformed_scan.header.frame_id = "lidar2d_0_laser";
+//     transformed_scan.header.stamp = stamp;
+
+//     // Create transformation matrix
+//     Eigen::Matrix3d transform = Eigen::Matrix3d::Identity();
+//     transform(0, 0) = std::cos(result.theta);
+//     transform(0, 1) = -std::sin(result.theta);
+//     transform(1, 0) = std::sin(result.theta);
+//     transform(1, 1) = std::cos(result.theta);
+//     transform(0, 2) = result.x;
+//     transform(1, 2) = result.y;
+    
+//     std::vector<Point2D> points = ScanMatcher_instance.convertScanToPoints(scan);
+
+//     ScanMatcher_instance.transformPoints(points, transform);
+
+
+//     for (size_t i = 0; i < transformed_scan.ranges.size(); ++i) {
+//         transformed_scan.ranges[i] = std::hypot(points[i].x, points[i].y);
+    
+//     }
+//     return transformed_scan;
+// }
+
+
+sensor_msgs::msg::PointCloud2 publishTransformedScan(const sensor_msgs::msg::LaserScan::SharedPtr& scan, ScanMatcher::MatchResult result, rclcpp::Node* node){
     ScanMatcher ScanMatcher_instance(50, 0.001);
     sensor_msgs::msg::LaserScan transformed_scan = *scan;
-    transformed_scan.header.frame_id = "lidar2d_0_laser";
-    transformed_scan.header.stamp = stamp;
+    // transformed_scan.header.frame_id = "lidar2d_0_laser";
+    // transformed_scan.header.stamp = stamp;
 
     // Create transformation matrix
     Eigen::Matrix3d transform = Eigen::Matrix3d::Identity();
@@ -57,41 +86,91 @@ sensor_msgs::msg::LaserScan publishTransformedScan(const sensor_msgs::msg::Laser
     transform(1, 2) = result.y;
     
     std::vector<Point2D> points = ScanMatcher_instance.convertScanToPoints(scan);
-
     ScanMatcher_instance.transformPoints(points, transform);
 
+    RCLCPP_INFO(node->get_logger(), "Publishing transformed PointCloud2 with %zu points", points.size());
 
-    for (size_t i = 0; i < transformed_scan.ranges.size(); ++i) {
-        transformed_scan.ranges[i] = std::hypot(points[i].x, points[i].y);
-    
+    // Create PointCloud2 message
+    sensor_msgs::msg::PointCloud2 pointcloud;
+    pointcloud.header.frame_id = "lidar2d_0_laser";
+    pointcloud.header.stamp = node->now();
+
+    // Set metadata
+    pointcloud.height = 1;  // Unordered point cloud
+    pointcloud.width = points.size();
+    pointcloud.is_dense = true;
+    pointcloud.is_bigendian = false;
+
+    // Define fields (x, y, z)
+    sensor_msgs::msg::PointField field_x, field_y, field_z;
+    field_x.name = "x";
+    field_x.offset = 0;
+    field_x.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_x.count = 1;
+
+    field_y.name = "y";
+    field_y.offset = 4;
+    field_y.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_y.count = 1;
+
+    field_z.name = "z";
+    field_z.offset = 8;
+    field_z.datatype = sensor_msgs::msg::PointField::FLOAT32;
+    field_z.count = 1;
+
+    pointcloud.fields = {field_x, field_y, field_z};
+    pointcloud.point_step = 12;             // Each point has 3 fields (x, y, z), each 4 bytes
+    pointcloud.row_step = pointcloud.width * pointcloud.point_step;
+
+    // Allocate space for point data
+    pointcloud.data.resize(pointcloud.row_step * pointcloud.height);
+
+    // Fill point data
+    sensor_msgs::PointCloud2Iterator<float> iter_x(pointcloud, "x");
+    sensor_msgs::PointCloud2Iterator<float> iter_y(pointcloud, "y");
+    sensor_msgs::PointCloud2Iterator<float> iter_z(pointcloud, "z");
+
+    for (const auto& point : points) {
+        *iter_x = point.x;  // x-coordinate
+        *iter_y = point.y;  // y-coordinate
+        *iter_z = 0.0f;     // z-coordinate (LiDAR is 2D, so z=0)
+        ++iter_x;
+        ++iter_y;
+        ++iter_z;
     }
-    return transformed_scan;
+
+
+    // for (size_t i = 0; i < transformed_scan.ranges.size(); ++i) {
+    //     transformed_scan.ranges[i] = std::hypot(points[i].x, points[i].y);
+    
+    // }
+    return pointcloud;
 }
 
 
-sensor_msgs::msg::LaserScan publishCorrespondedPoints(const sensor_msgs::msg::LaserScan::SharedPtr& scan1, const sensor_msgs::msg::LaserScan::SharedPtr& scan2, rclcpp::Time& stamp){
-    ScanMatcher ScanMatcher_instance(50, 0.001);
-    sensor_msgs::msg::LaserScan scan1_p = *scan1;
-    sensor_msgs::msg::LaserScan scan2_p = *scan2;
+// sensor_msgs::msg::LaserScan publishCorrespondedPoints(const sensor_msgs::msg::LaserScan::SharedPtr& scan1, const sensor_msgs::msg::LaserScan::SharedPtr& scan2, rclcpp::Time& stamp){
+//     ScanMatcher ScanMatcher_instance(50, 0.001);
+//     sensor_msgs::msg::LaserScan scan1_p = *scan1;
+//     sensor_msgs::msg::LaserScan scan2_p = *scan2;
 
-    scan1_p.header.frame_id = "tf_laser";
-    scan1_p.header.stamp = stamp;
+//     scan1_p.header.frame_id = "tf_laser";
+//     scan1_p.header.stamp = stamp;
     
-    std::vector<Point2D> points1 = ScanMatcher_instance.convertScanToPoints(scan1);
-    std::vector<Point2D> points2 = ScanMatcher_instance.convertScanToPoints(scan2);
+//     std::vector<Point2D> points1 = ScanMatcher_instance.convertScanToPoints(scan1);
+//     std::vector<Point2D> points2 = ScanMatcher_instance.convertScanToPoints(scan2);
 
-    std::vector<Point2D> corresponding_points;
+//     std::vector<Point2D> corresponding_points;
 
-    for (const auto& p1 : points1) {
-        corresponding_points.push_back(ScanMatcher_instance.findNearestPoint(p1, points2));
-    }
+//     for (const auto& p1 : points1) {
+//         corresponding_points.push_back(ScanMatcher_instance.findNearestPoint(p1, points2));
+//     }
 
-    for (size_t i = 0; i < scan1_p.ranges.size(); ++i) {
-        scan1_p.ranges[i] = std::hypot(corresponding_points[i].x, corresponding_points[i].y);
+//     for (size_t i = 0; i < scan1_p.ranges.size(); ++i) {
+//         scan1_p.ranges[i] = std::hypot(corresponding_points[i].x, corresponding_points[i].y);
     
-    }
-    return scan1_p;
-}
+//     }
+//     return scan1_p;
+// }
 
 
 void RelativePoseFinder::match_scans()
@@ -120,9 +199,9 @@ void RelativePoseFinder::match_scans()
             "Found relative pose: x=%.2f, y=%.2f, theta=%.2f, fitness=%.2f",
             result.x, result.y, result.theta, result.fitness);
 
-        auto stamp = this->now();
-        sensor_msgs::msg::LaserScan transformed_scan = publishTransformedScan(latest_scan1_, result, stamp);
+        // sensor_msgs::msg::LaserScan transformed_scan = publishTransformedScan(latest_scan1_, result, stamp);
         // sensor_msgs::msg::LaserScan transformed_scan = publishCorrespondedPoints(latest_scan1_, latest_scan2_, stamp);
+        sensor_msgs::msg::PointCloud2 transformed_scan = publishTransformedScan(latest_scan1_, result, this);
 
         transformed_scan_pub_->publish(transformed_scan);
     } else {
