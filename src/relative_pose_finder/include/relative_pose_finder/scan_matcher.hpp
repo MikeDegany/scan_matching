@@ -35,9 +35,11 @@ public:
     double computeFitness(const std::vector<Point2D>& points1,
                          const std::vector<Point2D>& points2);
     void transformPoints(std::vector<Point2D>& points, const Eigen::Matrix3d& transform);
+
+    // bool checkConvergence(double prev_error, double curr_error);
     
     int max_iterations_;
     double tolerance_;
 };
 
-#endif
+#endif  // SCAN_MATCHER_HPP
