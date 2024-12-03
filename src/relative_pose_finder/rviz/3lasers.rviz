@@ -147,8 +147,8 @@ Visualization Manager:
       Axis: Z
       Channel Name: intensity
       Class: rviz_default_plugins/PointCloud2
-      Color: 255; 255; 255
-      Color Transformer: Intensity
+      Color: 87; 227; 137
+      Color Transformer: FlatColor
       Decay Time: 0
       Enabled: true
       Invert Rainbow: false
@@ -160,7 +160,7 @@ Visualization Manager:
       Position Transformer: XYZ
       Selectable: true
       Size (Pixels): 3
-      Size (m): 0.10000000149011612
+      Size (m): 0.019999999552965164
       Style: Flat Squares
       Topic:
         Depth: 5
@@ -217,26 +217,21 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/Orbit
-      Distance: 0.0010000000474974513
+      Angle: 0
+      Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Focal Point:
-        X: 0
-        Y: 0
-        Z: 0
-      Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.3203974962234497
-      Target Frame: <Fixed Frame>
-      Value: Orbit (rviz)
-      Yaw: 0.07039910554885864
+      Scale: 105
+      Target Frame: lidar2d_0_laser
+      Value: TopDownOrtho (rviz_default_plugins)
+      X: 0
+      Y: 0.30000001192092896
     Saved: ~
 Window Geometry:
   Displays:

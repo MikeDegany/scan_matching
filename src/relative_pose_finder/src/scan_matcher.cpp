@@ -3,6 +3,8 @@
 #include <cmath>
 #include <limits>
 #include <iostream>
+#include <fstream>
+#include <vector>
 
 ScanMatcher::ScanMatcher(int max_iterations, double tolerance)
     : max_iterations_(max_iterations), tolerance_(tolerance)
@@ -110,6 +112,21 @@ double ScanMatcher::computeFitness(const std::vector<Point2D>& points1,
     return total_error / points1.size();
 }
 
+
+// void savePointsToFile(const std::vector<Point2D>& points, const std::string& filename) {
+//     std::ofstream file(filename);
+//     if (!file) {
+//         std::cerr << "Unable to open file: " << filename << std::endl;
+//         return;
+//     }
+
+//     for (const auto& point : points) {
+//         file << point.x << "," << point.y << "\n";
+//     }
+//     file.close();
+// }
+
+
 ScanMatcher::MatchResult ScanMatcher::match(
     const sensor_msgs::msg::LaserScan::SharedPtr& scan1,
     const sensor_msgs::msg::LaserScan::SharedPtr& scan2)
@@ -117,6 +134,9 @@ ScanMatcher::MatchResult ScanMatcher::match(
     // Convert scans to point clouds
     auto points1 = convertScanToPoints(scan1);
     auto points2 = convertScanToPoints(scan2);
+
+    // savePointsToFile(points1, "points1_transformed.csv");
+    // savePointsToFile(points2, "points2_transformed.csv");
     
     // Initial transform
     Eigen::Matrix3d current_transform = Eigen::Matrix3d::Identity();
