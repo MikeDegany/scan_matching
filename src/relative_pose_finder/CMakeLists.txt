@@ -15,11 +15,15 @@ find_package(tf2_ros REQUIRED)
 find_package(Boost REQUIRED COMPONENTS serialization system filesystem thread)
 find_package(TBB REQUIRED NO_CMAKE_PACKAGE_REGISTRY)
 find_package(Eigen3 REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter Development NumPy)
+find_package(OpenCV REQUIRED)
 
 include_directories(include
 ${Boost_INCLUDE_DIRS}
+${Python3_INCLUDE_DIRS}
 # ${karto_sdk_INCLUDE_DIRS}
 ${TBB_INCLUDE_DIRS}
+include_directories(${OpenCV_INCLUDE_DIRS})
 )
 
 add_executable(relative_pose_finder
@@ -37,6 +41,8 @@ target_link_libraries(relative_pose_finder
   /opt/ros/humble/lib/libkartoSlamToolbox.so
   TBB::tbb
   ${EIGEN3_LIBRARIES}
+  ${Python3_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 # Add to target_include_directories
 target_include_directories(relative_pose_finder PUBLIC

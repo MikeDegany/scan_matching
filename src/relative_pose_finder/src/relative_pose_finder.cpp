@@ -56,7 +56,7 @@ sensor_msgs::msg::PointCloud2 publishTransformedScan(const sensor_msgs::msg::Las
     transform(0, 2) = result.x;
     transform(1, 2) = result.y;
     
-    std::vector<Point2D> points = ScanMatcher_instance.convertScanToPoints(scan);
+    std::vector<Eigen::Vector2d> points = ScanMatcher_instance.convertScanToPoints(scan);
     
     ScanMatcher_instance.transformPoints(points, transform); // Comment out this line to visualize the converted points from original scan 
 
@@ -103,8 +103,8 @@ sensor_msgs::msg::PointCloud2 publishTransformedScan(const sensor_msgs::msg::Las
     sensor_msgs::PointCloud2Iterator<float> iter_z(pointcloud, "z");
 
     for (const auto& point : points) {
-        *iter_x = point.x;  // x-coordinate
-        *iter_y = point.y;  // y-coordinate
+        *iter_x = point[0];  // x-coordinate
+        *iter_y = point[1];  // y-coordinate
         *iter_z = 0.0f;     // z-coordinate (LiDAR is 2D, so z=0)
         ++iter_x;
         ++iter_y;
